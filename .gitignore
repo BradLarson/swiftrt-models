@@ -1,0 +1,13 @@
+# Ignore editor spam.
+*~
+*.swp
+*.swo
+
+.build
+build/
+*.xcodeproj
+.DS_Store
+.swiftpm
+output/
+.idea
+Package.resolved

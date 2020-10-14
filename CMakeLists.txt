@@ -1,0 +1,189 @@
+cmake_minimum_required(VERSION 3.17)
+project(Models
+  LANGUAGES C Swift)
+
+option(SWIFTRT_ENABLE_CUDA "Enable CUDA Support" NO)
+
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_Swift_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/swift)
+file(MAKE_DIRECTORY ${CMAKE_Swift_MODULE_DIRECTORY})
+
+include(CTest)
+include(ExternalProject)
+include(SwiftSupport)
+
+# Dependencies
+if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+  ExternalProject_Add(swift-win32
+    GIT_REPOSITORY git://github.com/compnerd/swift-win32.git
+    GIT_TAG d4613fb66fcd7814549b5f13cc30ab31bfd95b97
+    CMAKE_ARGS
+      -DBUILD_SHARED_LIBS=YES
+      -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+      -DCMAKE_Swift_COMPILER=${CMAKE_Swift_COMPILER}
+      -DCMAKE_Swift_FLAGS=${CMAKE_Swift_FLAGS}
+    INSTALL_COMMAND
+      COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/bin/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftWin32${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/
+      COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/lib/${CMAKE_IMPORT_LIBRARY_PREFIX}SwiftWin32${CMAKE_IMPORT_LIBRARY_SUFFIX} ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/
+      COMMAND
+        ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/swift/SwiftWin32.swiftmodule ${CMAKE_Swift_MODULE_DIRECTORY}/
+    BUILD_BYPRODUCTS
+      <BINARY_DIR>/bin/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftWin32${CMAKE_SHARED_LIBRARY_SUFFIX}
+      <BINARY_DIR>/lib/${CMAKE_IMPORT_LIBRARY_PREFIX}SwiftWin32${CMAKE_IMPORT_LIBRARY_SUFFIX}
+      ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftWin32${CMAKE_SHARED_LIBRARY_SUFFIX}
+      ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${CMAKE_IMPORT_LIBRARY_PREFIX}SwiftWin32${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    STEP_TARGETS install)
+
+  add_library(SwiftWin32 SHARED IMPORTED)
+  set_target_properties(SwiftWin32 PROPERTIES
+    IMPORTED_LOCATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftWin32${CMAKE_SHARED_LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/${CMAKE_IMPORT_LIBRARY_PREFIX}SwiftWin32${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+  add_dependencies(SwiftWin32 swift-win32-install)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+  set(_copy_swift_argument_parser_import_library
+    ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/Sources/ArgumentParser/${CMAKE_IMPORT_LIBRARY_PREFIX}ArgumentParser${CMAKE_IMPORT_LIBRARY_SUFFIX} ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/)
+endif()
+ExternalProject_Add(swift-argument-parser
+  GIT_REPOSITORY git://github.com/apple/swift-argument-parser.git
+  GIT_TAG main
+  CMAKE_ARGS
+    -DBUILD_SHARED_LIBS=YES
+    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+    -DCMAKE_Swift_COMPILER=${CMAKE_Swift_COMPILER}
+    -DCMAKE_Swift_FLAGS=${CMAKE_Swift_FLAGS}
+    -DBUILD_EXAMPLES=NO
+    -DBUILD_TESTING=NO
+  INSTALL_COMMAND
+    COMMAND
+      ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/lib/${CMAKE_SHARED_LIBRARY_PREFIX}ArgumentParser${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/
+    COMMAND
+      ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/swift/ArgumentParser.swiftmodule ${CMAKE_Swift_MODULE_DIRECTORY}/
+    COMMAND
+      ${_copy_swift_argument_parser_import_library}
+  BUILD_BYPRODUCTS
+    <BINARY_DIR>/Sources/ArgumentParser/${CMAKE_SHARED_LIBRARY_PREFIX}ArgumentParser${CMAKE_SHARED_LIBRARY_SUFFIX}
+    <BINARY_DIR>/Sources/ArgumentParser/${CMAKE_IMPORT_LIBRARY_PREFIX}ArgumentParser${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_SHARED_LIBRARY_PREFIX}ArgumentParser${CMAKE_SHARED_LIBRARY_SUFFIX}
+    ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_IMPORT_LIBRARY_PREFIX}ArgumentParser${CMAKE_IMPORT_LIBRARY_SUFFIX}
+  STEP_TARGETS install)
+
+add_library(ArgumentParser SHARED IMPORTED)
+set_target_properties(ArgumentParser PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_SHARED_LIBRARY_PREFIX}ArgumentParser${CMAKE_SHARED_LIBRARY_SUFFIX}
+  IMPORTED_IMPLIB ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_IMPORT_LIBRARY_PREFIX}ArgumentParser${CMAKE_IMPORT_LIBRARY_SUFFIX}
+  INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+add_dependencies(ArgumentParser swift-argument-parser-install)
+
+if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+  set(_copy_swiftrt_import_library
+    ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/Sources/SwiftRT/${CMAKE_IMPORT_LIBRARY_PREFIX}SwiftRT${CMAKE_IMPORT_LIBRARY_SUFFIX} ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/)
+endif()
+ExternalProject_Add(swift-rt
+  SOURCE_DIR ../../swiftrt
+#  GIT_REPOSITORY git://github.com/ewconnell/swiftrt.git
+#  GIT_TAG master
+  CMAKE_ARGS
+    -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE
+    -DCMAKE_C_COMPILER:FILEPATH=${SWIFT_HOME}/usr/bin/clang-10
+    -DBUILD_SHARED_LIBS=YES
+    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+    -DCMAKE_Swift_COMPILER=${CMAKE_Swift_COMPILER}
+    -DCMAKE_Swift_FLAGS=${CMAKE_Swift_FLAGS}
+    -DBUILD_TESTING=NO
+    -DSWIFTRT_ENABLE_CUDA=${SWIFTRT_ENABLE_CUDA}
+  INSTALL_COMMAND
+    COMMAND
+      ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/lib/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRT${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/
+    COMMAND
+      ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/lib/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRTCore${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/
+    COMMAND
+      ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/lib/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRTLayers${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/
+    COMMAND
+      ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/swift/SwiftRT.swiftmodule ${CMAKE_Swift_MODULE_DIRECTORY}/
+    COMMAND
+      ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/swift/SwiftRTCore.swiftmodule ${CMAKE_Swift_MODULE_DIRECTORY}/
+    COMMAND
+      ${CMAKE_COMMAND} -E copy_if_different <BINARY_DIR>/swift/SwiftRTLayers.swiftmodule ${CMAKE_Swift_MODULE_DIRECTORY}/
+    COMMAND
+      ${_copy_swiftrt_import_library}
+  BUILD_BYPRODUCTS
+    <BINARY_DIR>/Sources/SwiftRT/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRT${CMAKE_SHARED_LIBRARY_SUFFIX}
+    <BINARY_DIR>/Sources/SwiftRT/${CMAKE_IMPORT_LIBRARY_PREFIX}SwiftRT${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRT${CMAKE_SHARED_LIBRARY_SUFFIX}
+    ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_IMPORT_LIBRARY_PREFIX}SwiftRT${CMAKE_IMPORT_LIBRARY_SUFFIX}
+  STEP_TARGETS install)
+
+add_library(SwiftRT SHARED IMPORTED)
+set_target_properties(SwiftRT PROPERTIES
+  IMPORTED_LOCATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRT${CMAKE_SHARED_LIBRARY_SUFFIX}
+  IMPORTED_IMPLIB ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${CMAKE_IMPORT_LIBRARY_PREFIX}SwiftRT${CMAKE_IMPORT_LIBRARY_SUFFIX}
+  INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_Swift_MODULE_DIRECTORY})
+add_dependencies(SwiftRT swift-rt-install)
+
+function(import_module module_name build_dir build_target)
+  add_library(${module_name} IMPORTED UNKNOWN)
+  if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+    set_target_properties(${module_name} PROPERTIES
+      IMPORTED_IMPLIB ${build_dir}/lib/${CMAKE_IMPORT_LIBRARY_PREFIX}${module_name}${CMAKE_IMPORT_LIBRARY_SUFFIX}
+      INTERFACE_INCLUDE_DIRECTORIES ${build_dir}/swift)
+  else()
+    set_target_properties(${module_name} PROPERTIES
+      IMPORTED_LOCATION ${build_dir}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}${module_name}${CMAKE_SHARED_LIBRARY_SUFFIX}
+      INTERFACE_INCLUDE_DIRECTORIES ${build_dir}/swift)
+  endif()
+  add_dependencies(${module_name} ${build_target})
+endfunction()
+
+## swift-numerics
+ExternalProject_Add(swift-numerics
+  GIT_REPOSITORY
+    git://github.com/apple/swift-numerics
+  GIT_TAG
+    master
+  CMAKE_ARGS
+    -D BUILD_SHARED_LIBS=YES
+    -D BUILD_TESTING=NO
+    -D CMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+    -D CMAKE_Swift_COMPILER=${CMAKE_Swift_COMPILER}
+    -D CMAKE_Swift_COMPILER_TARGET=${CMAKE_Swift_COMPILER_TARGET}
+    -D CMAKE_Swift_FLAGS=${CMAKE_Swift_FLAGS}
+  INSTALL_COMMAND
+    ""
+  BUILD_BYPRODUCTS
+    <BINARY_DIR>/lib/${CMAKE_SHARED_LIBRARY_PREFIX}Numerics${CMAKE_SHARED_LIBRARY_SUFFIX}
+    <BINARY_DIR>/lib/${CMAKE_IMPORT_LIBRARY_PREFIX}Numerics${CMAKE_IMPORT_LIBRARY_SUFFIX}
+  UPDATE_DISCONNECTED
+    TRUE
+  STEP_TARGETS
+    build)
+ExternalProject_Get_Property(swift-numerics BINARY_DIR)
+ExternalProject_Get_Property(swift-numerics SOURCE_DIR)
+
+file(MAKE_DIRECTORY ${BINARY_DIR}/swift)
+file(MAKE_DIRECTORY ${SOURCE_DIR}/Sources/_NumericsShims/include)
+
+import_module(Numerics ${BINARY_DIR} swift-numerics-build)
+import_module(ComplexModule ${BINARY_DIR} swift-numerics-build)
+import_module(RealModule ${BINARY_DIR} swift-numerics-build)
+
+add_library(_NumericsShims IMPORTED INTERFACE)
+set_target_properties(_NumericsShims PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${SOURCE_DIR}/Sources/_NumericsShims/include)
+add_dependencies(_NumericsShims swift-numerics-build)
+
+set_target_properties(Numerics PROPERTIES
+  INTERFACE_LINK_DIRECTORIES ${BINARY_DIR}/lib
+  INTERFACE_LINK_LIBRARIES _NumericsShims)
+
+add_subdirectory(Support)
+add_subdirectory(Examples)
+
