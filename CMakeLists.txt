@@ -5,6 +5,7 @@ project(Models
 option(SWIFTRT_ENABLE_CUDA "Enable CUDA Support" NO)
 if(SWIFTRT_ENABLE_CUDA)
   enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
@@ -62,16 +63,36 @@ ExternalProject_Add(swift-rt
     ""
   BUILD_BYPRODUCTS
     <BINARY_DIR>/lib/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRT${CMAKE_SHARED_LIBRARY_SUFFIX}
+    <BINARY_DIR>/lib/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRTCuda${CMAKE_SHARED_LIBRARY_SUFFIX}
   STEP_TARGETS install)
 ExternalProject_Get_Property(swift-rt BINARY_DIR)
+ExternalProject_Get_Property(swift-rt SOURCE_DIR)
+
+if(SWIFTRT_ENABLE_CUDA)
+  add_library(CCUDA INTERFACE IMPORTED)
+  set_target_properties(CCUDA PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${BINARY_DIR}/Sources/CCUDA;${CUDAToolkit_INCLUDE_DIRS}")
+
+  add_library(SwiftRTCuda SHARED IMPORTED)
+  set_target_properties(SwiftRTCuda PROPERTIES
+    LANGUAGE CUDA
+    IMPORTED_LOCATION ${BINARY_DIR}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRTCuda${CMAKE_SHARED_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${SOURCE_DIR}/Modules/SwiftRTCuda
+    INTERFACE_LINK_LIBRARIES CCUDA)
+endif()
 
 add_library(SwiftRT SHARED IMPORTED)
 set_target_properties(SwiftRT PROPERTIES
   IMPORTED_LOCATION ${BINARY_DIR}/lib/${CMAKE_SHARED_LIBRARY_PREFIX}SwiftRT${CMAKE_SHARED_LIBRARY_SUFFIX}
-  INTERFACE_INCLUDE_DIRECTORIES ${BINARY_DIR}/swift)
+  INTERFACE_INCLUDE_DIRECTORIES ${BINARY_DIR}/swift
+  INTERFACE_LINK_LIBRARIES $<$<BOOL:SWIFTRT_ENABLE_CUDA>:SwiftRTCuda>)
 add_dependencies(SwiftRT swift-rt-install)
 
 file(MAKE_DIRECTORY ${BINARY_DIR}/swift)
+if(SWIFTRT_ENABLE_CUDA)
+  file(MAKE_DIRECTORY ${SOURCE_DIR}/Modules/SwiftRTCuda)
+  file(MAKE_DIRECTORY ${BINARY_DIR}/Sources/CCUDA)
+endif()
 
 function(import_module module_name build_dir build_target)
   add_library(${module_name} IMPORTED UNKNOWN)
