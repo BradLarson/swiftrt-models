@@ -148,8 +148,8 @@ extension FractalCommand {
                 iterations: parameters.iterations ?? 200,
                 tolerance: parameters.tolerance ?? 2.0,
                 range: region.imaginaryReversed,
-                size: parameters.ImageSize ?? ImageSize(rows: 1024, cols: 1024))
-            
+                size: parameters.ImageSize ?? ImageSize(rows: 1024, cols: 1024),
+                mode: .direct)
             do {
                 try saveFractalImage(
                     divergenceGrid,

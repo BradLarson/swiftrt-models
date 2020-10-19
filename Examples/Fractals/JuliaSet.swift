@@ -23,7 +23,15 @@ func juliaSet(
     range: ComplexRange,
     size: ImageSize
 ) -> Tensor2 {
-    var Z = array(from: range.start, to: range.end, size)
+    let size2 = (r: size[0], c: size[1])
+
+    let rFirst = Complex<Float>(range.start.real, 0), rLast = Complex<Float>(range.end.real, 0)
+    let iFirst = Complex<Float>(0, range.start.imaginary), iLast = Complex<Float>(0, range.end.imaginary)
+
+    let Xr = repeating(array(from: rFirst, to: rLast, (1, size2.c)), size2)
+    let Xi = repeating(array(from: iFirst, to: iLast, (size2.r, 1)), size2)
+    var Z = Xr + Xi
+
     var divergence = full(size, iterations)
 
     measureTime {
