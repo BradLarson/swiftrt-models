@@ -15,19 +15,16 @@
 //
 import Foundation
 import SwiftRT
-
-enum MandelbrotMode {
-  case direct
-  case parallelMap
-  case kernel
-}
+#if canImport(SwiftRTCuda)
+import SwiftRTCuda
+#endif
 
 func mandelbrotSet(
   iterations: Int,
   tolerance: Float,
   range: ComplexRange,
   size: ImageSize,
-  mode: MandelbrotMode
+  mode: FractalCalculationMode
 ) -> Tensor2 {
   let size2 = (r: size[0], c: size[1])
 
@@ -61,9 +58,13 @@ func mandelbrotSet(
     }
   case .kernel:
     // TODO: Have kernel take in X.
+    #if canImport(SwiftRTCuda)
+    fatalError("SwiftRT kernel for Mandelbrot set not yet implemented.")
+    #else
     pmap(Z, &divergence, limitedBy: .compute) {
       mandelbrotKernel(Z: $0, divergence: &$1, tolerance, iterations)
     }
+    #endif
   }
   
   print("elapsed \(String(format: "%.3f", Date().timeIntervalSince(start))) seconds")

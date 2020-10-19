@@ -16,12 +16,17 @@
 import Foundation
 import SwiftRT
 
+#if canImport(SwiftRTCuda)
+import SwiftRTCuda
+#endif
+
 func juliaSet(
     iterations: Int,
     constant C: Complex<Float>,
     tolerance: Float,
     range: ComplexRange,
-    size: ImageSize
+    size: ImageSize,
+    mode: FractalCalculationMode
 ) -> Tensor2 {
     let size2 = (r: size[0], c: size[1])
 
@@ -33,12 +38,45 @@ func juliaSet(
     var Z = Xr + Xi
 
     var divergence = full(size, iterations)
-
-    measureTime {
+    let start = Date()
+    switch mode {
+    case .direct:
         for i in 0..<iterations {
             Z = multiply(Z, Z, add: C)
             divergence[abs(Z) .> tolerance] = min(divergence, i)
         }
+    case .parallelMap:
+        // pmap(&Z, &divergence) { Z, divergence in
+        //     print("\(Context.currentQueue.name)", Z.storageBase, divergence.storageBase)
+        //     for i in 0..<1 {
+        //         Z = multiply(Z, Z, add: C)
+        //         divergence[abs(Z) .> tolerance] = min(divergence, i)
+        //     }
+        // }
+        fatalError("Parallel map version not implemented.")
+    case .kernel:
+    #if canImport(SwiftRTCuda)
+        let queue = currentQueue
+        _ = divergence.withMutableTensor(using: queue) { d, dDesc in
+            Z.withTensor(using: queue) {z, zDesc in
+                withUnsafePointer(to: tolerance) { t in
+                    withUnsafePointer(to: C) { c in
+                        srtJulia(z, zDesc, d, dDesc, t, c, iterations, queue.stream)
+                    }
+                }
+            }
+        }
+
+        // read on cpu to ensure gpu kernel is complete
+        _ = divergence.read()
+    #else
+        for i in 0..<iterations {
+            Z = multiply(Z, Z, add: C)
+            divergence[abs(Z) .> tolerance] = min(divergence, i)
+        }
+    #endif
     }
+    print("elapsed \(String(format: "%.3f", Date().timeIntervalSince(start))) seconds")
+
     return divergence
 }

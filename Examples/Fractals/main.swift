@@ -15,6 +15,12 @@ import Foundation
 import ArgumentParser
 import SwiftRT
 
+enum FractalCalculationMode: String, EnumerableFlag {
+  case direct
+  case parallelMap
+  case kernel
+}
+
 struct FractalCommand: ParsableCommand {
     static var configuration = CommandConfiguration(
         commandName: "Fractals",
@@ -41,8 +47,8 @@ extension FractalCommand {
         @Flag(help: "Use GPU")
         var gpu: Bool = false
         
-        @Flag(help: "Use pmap to distribute the work across devices")
-        var pmap: Bool = false
+        @Flag(help: "The method by which to calculate the fractal.")
+        var mode: FractalCalculationMode = .direct
 
         @Option(help: "Number of iterations to run.")
         var iterations: Int?
@@ -94,24 +100,13 @@ extension FractalCommand {
             let iterations = parameters.iterations ?? 200
             let size = parameters.ImageSize ?? ImageSize(rows: 1030, cols: 1030)
             
-            //print("ImageSize(r: \(size[0]), c: \(size[1])) iterations: \(iterations) queue: \(Context.currentQueue.name)")
-
-            let divergenceGrid: Tensor2
-            if parameters.pmap {
-                divergenceGrid = pmapJuliaSet(
-                    iterations: iterations,
-                    constant: constant ?? Complex<Float>(-0.8, 0.156),
-                    tolerance: parameters.tolerance ?? 4.0,
-                    range: region.imaginaryReversed,
-                    size: size)
-            } else {
-                divergenceGrid = juliaSet(
-                    iterations: iterations,
-                    constant: constant ?? Complex<Float>(-0.8, 0.156),
-                    tolerance: parameters.tolerance ?? 4.0,
-                    range: region.imaginaryReversed,
-                    size: size)
-            }
+            let divergenceGrid = juliaSet(
+                iterations: iterations,
+                constant: constant ?? Complex<Float>(-0.8, 0.156),
+                tolerance: parameters.tolerance ?? 4.0,
+                range: region.imaginaryReversed,
+                size: size,
+                mode: parameters.mode)
             
             do {
                 try saveFractalImage(
@@ -149,7 +144,7 @@ extension FractalCommand {
                 tolerance: parameters.tolerance ?? 2.0,
                 range: region.imaginaryReversed,
                 size: parameters.ImageSize ?? ImageSize(rows: 1024, cols: 1024),
-                mode: .direct)
+                mode: parameters.mode)
             do {
                 try saveFractalImage(
                     divergenceGrid,
