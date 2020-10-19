@@ -61,7 +61,7 @@ func mandelbrotSet(
     }
   case .kernel:
     // TODO: Have kernel take in X.
-    pmap(Z, &divergence, boundBy: .compute) {
+    pmap(Z, &divergence, limitedBy: .compute) {
       mandelbrotKernel(Z: $0, divergence: &$1, tolerance, iterations)
     }
   }
