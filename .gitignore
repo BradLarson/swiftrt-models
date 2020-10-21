@@ -11,3 +11,5 @@ build/
 output/
 .idea
 Package.resolved
+.vscode
+
