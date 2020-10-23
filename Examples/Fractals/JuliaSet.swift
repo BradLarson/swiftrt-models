@@ -25,19 +25,23 @@ func juliaSet(
     constant C: Complex<Float>,
     tolerance: Float,
     range: ComplexRange,
-    size: ImageSize,
+    size imageSize: ImageSize,
     mode: FractalCalculationMode
 ) -> Tensor2 {
-    let size2 = (r: size[0], c: size[1])
+    let size = (r: imageSize[0], c: imageSize[1])
 
-    let rFirst = Complex<Float>(range.start.real, 0), rLast = Complex<Float>(range.end.real, 0)
-    let iFirst = Complex<Float>(0, range.start.imaginary), iLast = Complex<Float>(0, range.end.imaginary)
+    let rFirst = Complex<Float>(range.start.real, 0)
+    let rLast  = Complex<Float>(range.end.real, 0)
+    let iFirst = Complex<Float>(0, range.start.imaginary)
+    let iLast  = Complex<Float>(0, range.end.imaginary)
 
-    let Xr = repeating(array(from: rFirst, to: rLast, (1, size2.c)), size2)
-    let Xi = repeating(array(from: iFirst, to: iLast, (size2.r, 1)), size2)
-    var Z = Xr + Xi
+    // repeat rows of real range, columns of imaginary range, and combine
+    var Z = repeating(array(from: rFirst, to: rLast, (1, size.c)), size) +
+            repeating(array(from: iFirst, to: iLast, (size.r, 1)), size)
+    var divergence = mode == .kernel ? empty(size) : full(size, iterations)
 
-    var divergence = full(size, iterations)
+    print("rows: \(size.r), cols: \(size.c), iterations: \(iterations)")
+
     let start = Date()
     switch mode {
     case .direct:
@@ -45,6 +49,7 @@ func juliaSet(
             Z = multiply(Z, Z, add: C)
             divergence[abs(Z) .> tolerance] = min(divergence, i)
         }
+
     case .parallelMap:
         // pmap(&Z, &divergence) { Z, divergence in
         //     print("\(Context.currentQueue.name)", Z.storageBase, divergence.storageBase)
@@ -57,18 +62,22 @@ func juliaSet(
     case .kernel:
     #if canImport(SwiftRTCuda)
         let queue = currentQueue
-        _ = divergence.withMutableTensor(using: queue) { d, dDesc in
-            Z.withTensor(using: queue) {z, zDesc in
-                withUnsafePointer(to: tolerance) { t in
-                    withUnsafePointer(to: C) { c in
-                        srtJulia(z, zDesc, d, dDesc, t, c, iterations, queue.stream)
-                    }
-                }
+
+        _ = withUnsafePointer(to: C) { pC in
+            withUnsafePointer(to: tolerance) { pt in
+                srtJuliaFlat(
+                    Complex<Float>.type,
+                    Z.deviceRead(using: queue),
+                    pC,
+                    pt,
+                    iterations,
+                    divergence.count,
+                    divergence.deviceReadWrite(using: queue),
+                    queue.stream)
             }
         }
+        queue.waitForCompletion()
 
-        // read on cpu to ensure gpu kernel is complete
-        _ = divergence.read()
     #else
         for i in 0..<iterations {
             Z = multiply(Z, Z, add: C)
@@ -76,7 +85,7 @@ func juliaSet(
         }
     #endif
     }
-    print("elapsed \(String(format: "%.3f", Date().timeIntervalSince(start))) seconds")
+    print("JuliaSet elapsed \(String(format: "%.7f", Date().timeIntervalSince(start))) seconds")
 
     return divergence
 }

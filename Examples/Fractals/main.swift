@@ -88,8 +88,9 @@ extension FractalCommand {
         
         func run() throws {
             // select the device
-//            Context.log.level = .diagnostic
-            if parameters.gpu { use(device: 1) }            
+           log.level = .diagnostic
+            if parameters.gpu { use(device: 1) }
+            currentQueue.diagnostic(.alloc, "fake alloc message", categories: [.dataAlloc])
 
 //            if parameters.pmap {
 //                Context.cpuQueueCount = ProcessInfo().activeProcessorCount

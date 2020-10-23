@@ -23,23 +23,23 @@ func mandelbrotSet(
   iterations: Int,
   tolerance: Float,
   range: ComplexRange,
-  size: ImageSize,
+  size imageSize: ImageSize,
   mode: FractalCalculationMode
 ) -> Tensor2 {
-  let size2 = (r: size[0], c: size[1])
+  let size = (r: imageSize[0], c: imageSize[1])
 
-  let rFirst = Complex<Float>(range.start.real, 0), rLast = Complex<Float>(range.end.real, 0)
-  let iFirst = Complex<Float>(0, range.start.imaginary), iLast = Complex<Float>(0, range.end.imaginary)
+  let rFirst = Complex<Float>(range.start.real, 0)
+  let rLast  = Complex<Float>(range.end.real, 0)
+  let iFirst = Complex<Float>(0, range.start.imaginary)
+  let iLast  = Complex<Float>(0, range.end.imaginary)
 
   // repeat rows of real range, columns of imaginary range, and combine
-  let Xr = repeating(array(from: rFirst, to: rLast, (1, size2.c)), size2)
-  let Xi = repeating(array(from: iFirst, to: iLast, (size2.r, 1)), size2)
-  let X = Xr + Xi
-
-  var divergence = full(size, iterations)
+  let X = repeating(array(from: rFirst, to: rLast, (1, size.c)), size) +
+          repeating(array(from: iFirst, to: iLast, (size.r, 1)), size)
   var Z = X
+  var divergence = mode == .kernel ? empty(size) : full(size, iterations)
 
-  print("rows: \(size[0]), cols: \(size[1]), iterations: \(iterations)")
+  print("rows: \(size.r), cols: \(size.c), iterations: \(iterations)")
   let start = Date()
   switch mode {
   case .direct:
@@ -47,6 +47,7 @@ func mandelbrotSet(
       divergence[abs(Z) .> tolerance] = min(divergence, i)
       Z = multiply(Z, Z, add: X)
     }
+
   case .parallelMap:
     // TODO: Have pmap take in X.
     // pmap(Z, X, &divergence) { Z, X, divergence in
@@ -56,18 +57,31 @@ func mandelbrotSet(
         Z = multiply(Z, Z, add: X)
       }
     }
+
   case .kernel:
-    // TODO: Have kernel take in X.
     #if canImport(SwiftRTCuda)
-    fatalError("SwiftRT kernel for Mandelbrot set not yet implemented.")
+        let queue = currentQueue
+
+        _ = withUnsafePointer(to: tolerance) { pt in
+            srtMandelbrotFlat(
+                Complex<Float>.type,
+                X.deviceRead(using: queue),
+                pt,
+                iterations,
+                divergence.count,
+                divergence.deviceReadWrite(using: queue),
+                queue.stream)
+        }
+        queue.waitForCompletion()
     #else
+    // TODO: Have kernel take in X.
     pmap(Z, &divergence, limitedBy: .compute) {
       mandelbrotKernel(Z: $0, divergence: &$1, tolerance, iterations)
     }
     #endif
   }
   
-  print("elapsed \(String(format: "%.3f", Date().timeIntervalSince(start))) seconds")
+  print("MandelbrotSet elapsed \(String(format: "%.7f", Date().timeIntervalSince(start))) seconds")
   return divergence
 }
 
@@ -76,18 +90,18 @@ func mandelbrotSet(
   divergence: inout TensorR2<E>,
   _ tolerance: E,
   _ iterations: Int
-) {
+) where E == E.Value, E.Value: Real & Comparable {
   let message =
     "mandelbrot(Z: \(Z.name), divergence: \(divergence.name), " +
     "tolerance: \(tolerance), iterations: \(iterations))"
 
   kernel(Z, &divergence, message) {
-    var Z = $0, d = $1
-    for i in 0..<iterations {
-//      Z = Z * Z + X
-      Z = Z * Z + Complex(1.0, 0.0)
-      if abs(Z) > tolerance { d = min(d, E.Value(exactly: i)!) }
+    let x = $0; var z = x, d = $1, i = E.Value.zero
+
+    while abs(z) <= tolerance && i < d {
+        z = z * z + x
+        i += 1
     }
-    return d
+    return i
   }
 }
