@@ -60,18 +60,17 @@ func mandelbrotSet(
 
   case .kernel:
     #if canImport(SwiftRTCuda)
-        let queue = currentQueue
+      let queue = currentQueue
 
-        _ = withUnsafePointer(to: tolerance) { pt in
-            srtMandelbrotFlat(
-                Complex<Float>.type,
-                X.deviceRead(using: queue),
-                pt,
-                iterations,
-                divergence.count,
-                divergence.deviceReadWrite(using: queue),
-                queue.stream)
-        }
+      srtMandelbrotFlat(
+          Complex<Float>.type,
+          X.deviceRead(using: queue),
+          tolerance,
+          iterations,
+          divergence.count,
+          divergence.deviceReadWrite(using: queue),
+          queue.stream)
+
         queue.waitForCompletion()
     #else
     // TODO: Have kernel take in X.

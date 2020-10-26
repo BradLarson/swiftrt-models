@@ -51,9 +51,9 @@ add_dependencies(ArgumentParser swift-argument-parser-install)
 file(MAKE_DIRECTORY ${BINARY_DIR}/swift)
 
 ExternalProject_Add(swift-rt
-#  SOURCE_DIR /home/ed/swiftrt
-  GIT_REPOSITORY git://github.com/ewconnell/swiftrt.git
-  GIT_TAG origin/feature
+  SOURCE_DIR /home/ed/swiftrt
+#  GIT_REPOSITORY git://github.com/ewconnell/swiftrt.git
+#  GIT_TAG origin/feature
   CMAKE_ARGS
     -DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}
     -DBUILD_SHARED_LIBS=YES

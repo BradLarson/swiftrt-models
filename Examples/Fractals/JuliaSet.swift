@@ -28,7 +28,7 @@ func juliaSet(
     size imageSize: ImageSize,
     mode: FractalCalculationMode
 ) -> Tensor2 {
-    let size = (r: imageSize[0], c: imageSize[1])
+    let size = (r: 30, c: 30) // (r: imageSize[0], c: imageSize[1])
 
     let rFirst = Complex<Float>(range.start.real, 0)
     let rLast  = Complex<Float>(range.end.real, 0)
@@ -38,7 +38,7 @@ func juliaSet(
     // repeat rows of real range, columns of imaginary range, and combine
     var Z = repeating(array(from: rFirst, to: rLast, (1, size.c)), size) +
             repeating(array(from: iFirst, to: iLast, (size.r, 1)), size)
-    var divergence = mode == .kernel ? empty(size) : full(size, iterations)
+    var divergence = mode == .kernel ? zeros(size) : full(size, iterations)
 
     print("rows: \(size.r), cols: \(size.c), iterations: \(iterations)")
 
@@ -62,22 +62,23 @@ func juliaSet(
     case .kernel:
     #if canImport(SwiftRTCuda)
         let queue = currentQueue
-
+        print("running cuda kernel")
         _ = withUnsafePointer(to: C) { pC in
-            withUnsafePointer(to: tolerance) { pt in
-                srtJuliaFlat(
-                    Complex<Float>.type,
-                    Z.deviceRead(using: queue),
-                    pC,
-                    pt,
-                    iterations,
-                    divergence.count,
-                    divergence.deviceReadWrite(using: queue),
-                    queue.stream)
-            }
+            srtJuliaFlat(
+                Complex<Float>.type,
+                Z.deviceRead(using: queue),
+                pC,
+                tolerance,
+                iterations,
+                divergence.count,
+                divergence.deviceReadWrite(using: queue),
+                queue.stream)
         }
-        queue.waitForCompletion()
 
+        // this is only needed to make sure the work is done for
+        // perf measurements
+        queue.waitForCompletion()
+        print(divergence)
     #else
         for i in 0..<iterations {
             Z = multiply(Z, Z, add: C)
