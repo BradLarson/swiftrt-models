@@ -90,8 +90,6 @@ extension FractalCommand {
             // select the device
            log.level = .diagnostic
             if parameters.gpu { use(device: 1) }
-            currentQueue.diagnostic(.alloc, "fake alloc message", categories: [.dataAlloc])
-
 //            if parameters.pmap {
 //                Context.cpuQueueCount = ProcessInfo().activeProcessorCount
 //            }
@@ -99,7 +97,7 @@ extension FractalCommand {
             let region = parameters.region ??
                 ComplexRange(Complex<Float>(-1.7, -1.7), Complex<Float>(1.7, 1.7))
             let iterations = parameters.iterations ?? 200
-            let size = parameters.ImageSize ?? ImageSize(rows: 1030, cols: 1030)
+            let size = parameters.ImageSize ?? ImageSize(rows: 1000, cols: 1000)
             
             let divergenceGrid = juliaSet(
                 iterations: iterations,
@@ -144,7 +142,7 @@ extension FractalCommand {
                 iterations: parameters.iterations ?? 200,
                 tolerance: parameters.tolerance ?? 2.0,
                 range: region.imaginaryReversed,
-                size: parameters.ImageSize ?? ImageSize(rows: 1024, cols: 1024),
+                size: parameters.ImageSize ?? ImageSize(rows: 1000, cols: 1000),
                 mode: parameters.mode)
             do {
                 try saveFractalImage(

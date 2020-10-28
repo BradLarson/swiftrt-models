@@ -28,7 +28,7 @@ func juliaSet(
     size imageSize: ImageSize,
     mode: FractalCalculationMode
 ) -> Tensor2 {
-    let size = (r: 30, c: 30) // (r: imageSize[0], c: imageSize[1])
+    let size = (r: imageSize[0], c: imageSize[1])
 
     let rFirst = Complex<Float>(range.start.real, 0)
     let rLast  = Complex<Float>(range.end.real, 0)
@@ -78,7 +78,6 @@ func juliaSet(
         // this is only needed to make sure the work is done for
         // perf measurements
         queue.waitForCompletion()
-        print(divergence)
     #else
         for i in 0..<iterations {
             Z = multiply(Z, Z, add: C)
