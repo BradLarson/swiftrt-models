@@ -29,19 +29,20 @@ func juliaSet(
     mode: FractalCalculationMode
 ) -> Tensor2 {
     let size = (r: imageSize[0], c: imageSize[1])
+    print("rows: \(size.r), cols: \(size.c), iterations: \(iterations)")
 
+    // repeat rows of real range, columns of imaginary range, and combine
     let rFirst = Complex<Float>(range.start.real, 0)
     let rLast  = Complex<Float>(range.end.real, 0)
     let iFirst = Complex<Float>(0, range.start.imaginary)
     let iLast  = Complex<Float>(0, range.end.imaginary)
 
-    // repeat rows of real range, columns of imaginary range, and combine
     var Z = repeating(array(from: rFirst, to: rLast, (1, size.c)), size) +
             repeating(array(from: iFirst, to: iLast, (size.r, 1)), size)
     var divergence = mode == .kernel ? zeros(size) : full(size, iterations)
 
-    print("rows: \(size.r), cols: \(size.c), iterations: \(iterations)")
-
+    //----------------------------------
+    // perform the test
     let start = Date()
     switch mode {
     case .direct:
@@ -51,41 +52,66 @@ func juliaSet(
         }
 
     case .parallelMap:
-        // pmap(&Z, &divergence) { Z, divergence in
-        //     print("\(Context.currentQueue.name)", Z.storageBase, divergence.storageBase)
-        //     for i in 0..<1 {
-        //         Z = multiply(Z, Z, add: C)
-        //         divergence[abs(Z) .> tolerance] = min(divergence, i)
-        //     }
-        // }
-        fatalError("Parallel map version not implemented.")
+        if currentDevice.index == 0 {
+            pmap(Z, &divergence) { Z, divergence in
+                for i in 0..<iterations {
+                    Z = multiply(Z, Z, add: C)
+                    divergence[abs(Z) .> tolerance] = min(divergence, i)
+                }
+            }
+        } else {
+            fatalError("GPU Parallel map version not implemented.")
+        }
     case .kernel:
-    #if canImport(SwiftRTCuda)
-        let queue = currentQueue
-        print("running cuda kernel")
-        _ = withUnsafePointer(to: C) { pC in
-            srtJuliaFlat(
-                Complex<Float>.type,
-                Z.deviceRead(using: queue),
-                pC,
-                tolerance,
-                iterations,
-                divergence.count,
-                divergence.deviceReadWrite(using: queue),
-                queue.stream)
-        }
+        if currentDevice.index == 0 {
+            pmap(Z, &divergence, limitedBy: .compute) {
+                juliaCpuKernel(Z: $0, divergence: &$1, C, tolerance, Float(iterations))
+            }
+        } else {
+            #if canImport(SwiftRTCuda)
+                let queue = currentQueue
+                print("running cuda srtJuliaFlat kernel")
+                _ = withUnsafePointer(to: C) { pC in
+                    srtJuliaFlat(
+                        Complex<Float>.type,
+                        Z.deviceRead(using: queue),
+                        pC,
+                        tolerance,
+                        iterations,
+                        divergence.count,
+                        divergence.deviceReadWrite(using: queue),
+                        queue.stream)
+                }
 
-        // this is only needed to make sure the work is done for
-        // perf measurements
-        queue.waitForCompletion()
-    #else
-        for i in 0..<iterations {
-            Z = multiply(Z, Z, add: C)
-            divergence[abs(Z) .> tolerance] = min(divergence, i)
+                // this is only needed to make sure the work is done for
+                // perf measurements
+                queue.waitForCompletion()
+            #endif
         }
-    #endif
     }
     print("JuliaSet elapsed \(String(format: "%.7f", Date().timeIntervalSince(start))) seconds")
 
     return divergence
+}
+
+//==============================================================================
+// user defined element wise function
+@inlinable public func juliaCpuKernel<E>(
+    Z: TensorR2<Complex<E>>,
+    divergence: inout TensorR2<E>,
+    _ c: Complex<E>,
+    _ tolerance: E,
+    _ iterations: E.Value
+) where E: StorageElement & BinaryFloatingPoint, E.Value: BinaryFloatingPoint {
+    let message = "julia(Z: \(Z.name), divergence: \(divergence.name), " +
+        "constant: \(c), tolerance: \(tolerance)"
+
+    kernel(Z, &divergence, message) { zval, _ in
+        var z = zval, d = iterations, i = E.Value.zero
+        while abs(z) <= tolerance && i < d {
+            z = z * z + c
+            i += 1
+        }
+        return i
+    }
 }

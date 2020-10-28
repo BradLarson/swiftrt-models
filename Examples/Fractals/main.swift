@@ -44,9 +44,6 @@ extension FractalCommand {
         @Flag(help: "Use CPU")
         var cpu: Bool = false
         
-        @Flag(help: "Use GPU")
-        var gpu: Bool = false
-        
         @Flag(help: "The method by which to calculate the fractal.")
         var mode: FractalCalculationMode = .direct
 
@@ -64,13 +61,6 @@ extension FractalCommand {
         
         @Option(help: "Output image rows, cols")
         var ImageSize: ImageSize?
-        
-        func validate() throws {
-            guard !(cpu && gpu) else {
-                throw ValidationError(
-                    "Can't specify both --cpu and --gpu backends.")
-            }
-        }
     }
 }
 
@@ -89,7 +79,7 @@ extension FractalCommand {
         func run() throws {
             // select the device
            log.level = .diagnostic
-            if parameters.gpu { use(device: 1) }
+            if parameters.cpu { use(device: 0) }
 //            if parameters.pmap {
 //                Context.cpuQueueCount = ProcessInfo().activeProcessorCount
 //            }
@@ -129,7 +119,7 @@ extension FractalCommand {
         var parameters: FractalCommand.Parameters
         
         func run() throws {
-            if parameters.gpu { use(device: 1) }
+            if parameters.cpu { use(device: 0) }
             
 //            if parameters.pmap {
 //                Context.cpuQueueCount = ProcessInfo().activeProcessorCount
