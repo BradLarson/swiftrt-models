@@ -15,7 +15,7 @@ if(CMAKE_BUILD_TYPE STREQUAL Debug)
 elseif(CMAKE_BUILD_TYPE STREQUAL Release)
   if(SWIFTRT_RELEASE_UNCHECKED)
     message(STATUS "Build type is Release Unchecked")
-    #add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Ounchecked -enforce-exclusivity=unchecked")
+    #add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Ounchecked -enforce-exclusivity=unchecked>")
   endif()
 endif()
 
