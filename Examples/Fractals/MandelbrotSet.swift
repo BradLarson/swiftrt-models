@@ -53,13 +53,15 @@ func mandelbrotSet(
 
     case .parallelMap:
         if currentDevice.index == 0 {
-            // TODO: Have pmap take in X.
-            // pmap(Z, X, &divergence) { Z, X, divergence in
-            pmap(Z, &divergence) { Z, divergence in
-                let X = Z
-                for i in 1..<iterations {
-                    divergence[abs(Z) .> tolerance] = min(divergence, i)
-                    Z = multiply(Z, Z, add: X)
+            usingSyncQueue {
+                // TODO: Have pmap take in X.
+                // pmap(Z, X, &divergence) { Z, X, divergence in
+                pmap(Z, &divergence) { Z, divergence in
+                    let X = Z
+                    for i in 1..<iterations {
+                        divergence[abs(Z) .> tolerance] = min(divergence, i)
+                        Z = multiply(Z, Z, add: X)
+                    }
                 }
             }
         } else {
@@ -68,8 +70,10 @@ func mandelbrotSet(
 
     case .kernel:
         if currentDevice.index == 0 {
-            pmap(Z, &divergence, limitedBy: .compute) {
-                mandelbrotCpuKernel(Z: $0, divergence: &$1, tolerance, Float(iterations))
+            usingSyncQueue {
+                pmap(Z, &divergence, limitedBy: .compute) {
+                    mandelbrotCpuKernel(Z: $0, divergence: &$1, tolerance, Float(iterations))
+                }
             }
         } else {
             #if canImport(SwiftRTCuda)

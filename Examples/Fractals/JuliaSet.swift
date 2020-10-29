@@ -53,10 +53,12 @@ func juliaSet(
 
     case .parallelMap:
         if currentDevice.index == 0 {
-            pmap(Z, &divergence) { Z, divergence in
-                for i in 0..<iterations {
-                    Z = multiply(Z, Z, add: C)
-                    divergence[abs(Z) .> tolerance] = min(divergence, i)
+            usingSyncQueue {
+                pmap(Z, &divergence) { Z, divergence in
+                    for i in 0..<iterations {
+                        Z = multiply(Z, Z, add: C)
+                        divergence[abs(Z) .> tolerance] = min(divergence, i)
+                    }
                 }
             }
         } else {
@@ -64,8 +66,10 @@ func juliaSet(
         }
     case .kernel:
         if currentDevice.index == 0 {
-            pmap(Z, &divergence, limitedBy: .compute) {
-                juliaCpuKernel(Z: $0, divergence: &$1, C, tolerance, Float(iterations))
+            usingSyncQueue {
+                pmap(Z, &divergence, limitedBy: .compute) {
+                    juliaCpuKernel(Z: $0, divergence: &$1, C, tolerance, Float(iterations))
+                }
             }
         } else {
             #if canImport(SwiftRTCuda)
