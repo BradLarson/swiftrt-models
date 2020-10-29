@@ -25,6 +25,10 @@ let package = Package(
        .target(
            name: "Fractals",
            dependencies: ["ArgumentParser", "ModelSupport", "SwiftRT"],
-           path: "Examples/Fractals")
+           path: "Examples/Fractals"),
+      .target(
+          name: "Physarum",
+          dependencies: ["ModelSupport", "SwiftRT"],
+          path: "Examples/Physarum")
     ]
 )
