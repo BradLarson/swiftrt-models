@@ -1,9 +1,11 @@
 add_subdirectory(STBImage)
 
 add_library(ModelSupport
+  AnimatedImage.swift
   FileManagement.swift
   FileSystem.swift
   FoundationFileSystem.swift
+  GIF.swift
   Image.swift
   Stderr.swift)
 set_target_properties(ModelSupport PROPERTIES
