@@ -10,14 +10,19 @@ endif()
 
 option(SWIFTRT_RELEASE_UNCHECKED "Enable Unchecked Release build" NO)
 
-if(CMAKE_BUILD_TYPE STREQUAL Debug)
+#--------------------------------------
+# Report build configuration
+if((CMAKE_BUILD_TYPE STREQUAL Release) AND SWIFTRT_RELEASE_UNCHECKED)
+  message(STATUS "Build type is Release Unchecked")
+  add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Ounchecked -enforce-exclusivity=unchecked>")
+elseif(CMAKE_BUILD_TYPE STREQUAL Debug)
   add_compile_definitions(DEBUG)
-elseif(CMAKE_BUILD_TYPE STREQUAL Release)
-  if(SWIFTRT_RELEASE_UNCHECKED)
-    message(STATUS "Build type is Release Unchecked")
-    add_compile_options("SHELL:$<$<COMPILE_LANGUAGE:Swift>:-Ounchecked -enforce-exclusivity=unchecked>")
-  endif()
+  message(STATUS "Build type is Debug")
+else()
+  message(STATUS "Build type is ${CMAKE_BUILD_TYPE}")
 endif()
+#--------------------------------------
+
 
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
 
@@ -73,6 +78,7 @@ ExternalProject_Add(swift-rt
     -DSWIFTRT_ENABLE_CUDA=${SWIFTRT_ENABLE_CUDA}
     -DCMAKE_CUDA_ARCHITECTURES=${CMAKE_CUDA_ARCHITECTURES}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DSWIFTRT_RELEASE_UNCHECKED=${SWIFTRT_RELEASE_UNCHECKED}
   INSTALL_COMMAND
     ""
   BUILD_BYPRODUCTS
