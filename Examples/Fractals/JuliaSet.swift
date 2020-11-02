@@ -46,6 +46,25 @@ func juliaSet(
   // perform the test
   let start = Date()
   switch mode {
+  case .cachedMemory:
+    // this is an initiali proof of concept that needs to have a prettier api
+    let queue = currentQueue
+    Z = Z.shared()
+    var d = divergence.shared()
+    var min_di = Tensor(like: d)
+    var abs_Z = TensorR2<Float>(shape: Z.shape, order: Z.order)
+    var gt_absZt2 = TensorR2<Bool>(shape: Z.shape, order: Z.order)
+    let t2 = tolerance * tolerance
+
+    for i in 0..<iterations {
+      queue.multiply(Z, Z, add: C, &Z)
+      queue.min(d, Float(i), &min_di)
+      queue.abs2(Z, &abs_Z)
+      queue.greater(abs_Z, t2, &gt_absZt2)
+      queue.replace(d, min_di, gt_absZt2, &d)
+    }
+    queue.waitForCompletion()
+
   case .direct:
     for i in 0..<iterations {
       Z = multiply(Z, Z, add: C)
@@ -114,9 +133,8 @@ func juliaSet(
 
   kernel(Z, &divergence, message) { zval, _ in
     var z = zval
-    var d = iterations
     var i = E.Value.zero
-    while abs(z) <= tolerance && i < d {
+    while abs(z) <= tolerance && i < iterations {
       z = z * z + c
       i += 1
     }

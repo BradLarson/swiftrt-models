@@ -16,6 +16,7 @@ import ArgumentParser
 import SwiftRT
 
 enum FractalCalculationMode: String, EnumerableFlag {
+  case cachedMemory
   case direct
   case parallelMap
   case kernel
@@ -45,7 +46,7 @@ extension FractalCommand {
         var cpu: Bool = false
         
         @Flag(help: "The method by which to calculate the fractal.")
-        var mode: FractalCalculationMode = .direct
+        var mode: FractalCalculationMode = .cachedMemory
 
         @Option(help: "Number of iterations to run.")
         var iterations: Int?
