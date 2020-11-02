@@ -45,27 +45,32 @@ extension Tensor where TensorElement.Value: Numeric {
   }
 }
 
-// TODO: Implement angleToVector
-//func angleToVector(_ angle: Tensor<Float>) -> Tensor<Float> {
-//  return Tensor(stacking: [cos(angle), sin(angle)], alongAxis: -1)
-//}
+extension TensorR2 where TensorElement.Value: Real {
+  func angleToVector() -> TensorR3<TensorElement> {
+    // Note: Axis of -1 produced wrong shape here.
+    return TensorR3(stacking: [cos(self), sin(self)], axis: 2)
+  }
+}
 
 func step(phase: Int) {
   var currentGrid = grid[phase]
-  
-  // TODO: Implement all this.
-  /*
+
   // Perceive
-  let senseDirection = headings.expandingShape(at: 1).broadcasted(to: [particleCount, 3])
-    + Tensor<Float>([-moveAngle, 0.0, moveAngle], on: device)
-  let sensingOffset = angleToVector(senseDirection) * senseDistance
-  let sensingPosition = positions.expandingShape(at: 1) + sensingOffset
+  let senseDirection = repeating(expand(dims: headings, axis: 1), (particleCount, 3)) +
+    repeating(array([-moveAngle, 0.0, moveAngle], (1, 3)), (particleCount, 3))
+
+  let sensingOffset = senseDirection.angleToVector() * senseDistance
+  let sensingPosition = repeating(expand(dims: positions, axis: 1), (particleCount, 3, 2)) + sensingOffset
   // TODO: This wrapping around negative values needs to be fixed.
-  let sensingIndices = abs(Tensor<Int32>(sensingPosition))
-    % (gridShape.expandingShape(at: 0).expandingShape(at: 0))
-  let sensedValues = currentGrid.expandingShape(at: 2)
-    .dimensionGathering(atIndices: sensingIndices).squeezingShape(at: 2)
+  let sensingIndices = abs(TensorR3<Int32>(sensingPosition))
+  // TODO: Add the following modulus to the above.
+  //  % (gridShape.expandingShape(at: 0).expandingShape(at: 0))
   
+  // TODO: Gather
+  //  let sensedValues = currentGrid.expandingShape(at: 2)
+  //    .dimensionGathering(atIndices: sensingIndices).squeezingShape(at: 2)
+  
+  /*
   // Move
   let lowValues = sensedValues.argmin(squeezingAxis: -1)
   let highValues = sensedValues.argmax(squeezingAxis: -1)
