@@ -38,14 +38,12 @@ var headings = TensorR1<Float>(randomUniform: particleCount) * 2.0 * Float.pi
 
 let gridShape = Shape2(gridSize, gridSize)
 
-// TODO: Implement mask
-//extension Tensor where Scalar: Numeric {
-//  func mask(condition: (Tensor) -> Tensor<Bool>) -> Tensor {
-//    let satisfied = condition(self)
-//    return Tensor(zerosLike: self)
-//      .replacing(with: Tensor(onesLike: self), where: satisfied)
-//  }
-//}
+extension Tensor where TensorElement.Value: Numeric {
+  func mask(condition: (Tensor<Shape, TensorElement>) -> Tensor<Shape, Bool>) -> Tensor<Shape, TensorElement> {
+    let satisfied = condition(self)
+    return replace(x: zeros(like: self), with: ones(like: self), where: satisfied)
+  }
+}
 
 // TODO: Implement angleToVector
 //func angleToVector(_ angle: Tensor<Float>) -> Tensor<Float> {
@@ -53,9 +51,10 @@ let gridShape = Shape2(gridSize, gridSize)
 //}
 
 func step(phase: Int) {
+  var currentGrid = grid[phase]
+  
   // TODO: Implement all this.
   /*
-  var currentGrid = grid[phase]
   // Perceive
   let senseDirection = headings.expandingShape(at: 1).broadcasted(to: [particleCount, 3])
     + Tensor<Float>([-moveAngle, 0.0, moveAngle], on: device)
@@ -79,8 +78,6 @@ func step(phase: Int) {
   
   // Deposit
   // TODO: This wrapping around negative values needs to be fixed.
-  // TODO: XLA errors out with "Invalid argument: Automatic shape inference not supported: s32[1024,2] and s32[1,1,2]"
-  // if the manual shape expansion isn't present here.
   let depositIndices = abs(Tensor<Int32>(positions)) % (gridShape.expandingShape(at: 0))
   let deposits = scatterValues.dimensionScattering(atIndices: depositIndices, shape: gridShape)
   currentGrid += deposits
