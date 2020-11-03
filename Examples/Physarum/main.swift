@@ -54,6 +54,13 @@ extension TensorR2 where TensorElement.Value: Real {
   }
 }
 
+extension TensorR1 where TensorElement.Value: Real {
+  func angleToVector() -> TensorR2<TensorElement> {
+    // Note: Axis of -1 produced wrong shape here.
+    return TensorR2(stacking: [cos(self), sin(self)], axis: 1)
+  }
+}
+
 func step(phase: Int) {
   var currentGrid = grid[phase]
 
@@ -61,7 +68,8 @@ func step(phase: Int) {
   let senseDirection = repeating(expand(dims: headings, axis: 1), (particleCount, 3)) +
     repeating(array([-moveAngle, 0.0, moveAngle], (1, 3)), (particleCount, 3))
 
-  let sensingOffset = senseDirection.angleToVector() * senseDistance
+  // TODO: I shouldn't need to specify the tensor type here to make this unambiguous.
+  let sensingOffset: TensorR3<Float> = senseDirection.angleToVector() * senseDistance
   let sensingPosition = repeating(expand(dims: positions, axis: 1), (particleCount, 3, 2)) + sensingOffset
   // TODO: This wrapping around negative values needs to be fixed.
   let sensingIndices = abs(TensorR3<Int32>(sensingPosition))
@@ -76,41 +84,49 @@ func step(phase: Int) {
                             1.0, 1.0, 1.0,
                             1.0, 2.0, 3.0,
                             3.0, 2.0, 1.0,
-                            -1.0, -2.0, -3.0], (5, 3))
+                            -1.0, -2.0, -3.0], (5, 3)) // PLACEHOLDER
 
   // Move
+  //  let lowValues = argmin(sensedValues) // lowValues should be [0, 0-2, 0, 2, 2]
+  //  let highValues = argmax(sensedValues) // highValues should be [2, 0-2, 2, 0, 0]
+  let lowValues: TensorR1<Int32> = array([0, 1, 0, 2, 2])  // PLACEHOLDER
+  let highValues: TensorR1<Int32> = array([2, 1, 2, 0, 0]) // PLACEHOLDER
 
-  // lowValues should be [0, 0-2, 0, 2, 2]
-  // highValues should be [2, 0-2, 2, 0, 0]
-  let lowValues = argmin(sensedValues)
-  let highValues = argmax(sensedValues)
-  
-  print("lowValues shape: \(lowValues.shape)")
-  print("lowValues: \(lowValues)")
-//  let middleMask = lowValues.mask { $0 .== 1 }
-  
+  let middleMask = lowValues.mask { $0 .== 1 }
   let middleDistribution = TensorR1<Float>(randomUniform: particleCount)
-  let randomTurn = middleDistribution.mask { $0 .< 0.1 }
-    // * TensorR1<Float>(middleMask)
-//  let turn = TensorR1<Float>(highValues - 1) * TensorR1<Float>(1 - middleMask) + randomTurn
-//  headings += (turn * moveAngle)
-//  positions += angleToVector(headings) * moveStep
+  let randomTurn = middleDistribution.mask { $0 .< 0.1 } * TensorR1<Float>(middleMask)
+  let turn = TensorR1<Float>(highValues - 1) * TensorR1<Float>(1 - middleMask) + randomTurn
+  headings += (turn * moveAngle)
+  positions += headings.angleToVector() * moveStep
 
-  /*
-  
   // Deposit
   // TODO: This wrapping around negative values needs to be fixed.
-  let depositIndices = abs(Tensor<Int32>(positions)) % (gridShape.expandingShape(at: 0))
-  let deposits = scatterValues.dimensionScattering(atIndices: depositIndices, shape: gridShape)
+  let depositIndices = abs(TensorR2<Int32>(positions))
+  // TODO: Add the following modulus to the above.
+    // % gridShape
+
+  // TODO: Scatter
+  //  let deposits = scatterValues.dimensionScattering(atIndices: depositIndices, shape: gridShape)
+  let deposits = array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                  0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                  0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], (10, 10)) // PLACEHOLDER
+
   currentGrid += deposits
-  
+
   // Diffuse
-  currentGrid = currentGrid.expandingShape(at: 0).expandingShape(at: 3)
-  currentGrid = currentGrid.padded(forSizes: [(0, 0), (1, 1), (1, 1), (0, 0)], mode: .reflect)
-  currentGrid = avgPool2D(currentGrid, filterSize: (1, 3, 3, 1), strides: (1, 1, 1, 1), padding: .valid)
+
+  // TODO: 3x3 average pool with 0-padding
+  // currentGrid = avgPool2D(currentGrid, filterSize: (1, 3, 3, 1), strides: (1, 1, 1, 1), padding: .valid)
+
   currentGrid = currentGrid * evaporationRate
-  grid[1 - phase] = currentGrid.squeezingShape(at: 3).squeezingShape(at: 0)
-  */
+  grid[1 - phase] = currentGrid
 }
 
 let start = Date()
@@ -145,4 +161,20 @@ if captureImage {
   var result = Tensor(like: lhs)
   currentQueue.argmax(lhs, &result)
   return result
+}
+
+// TODO: Add this into main SwiftRT.
+// TODO: Add an equality operator with the rhs being a scalar.
+extension Tensor where TensorElement.Value: Equatable & StorageElement {
+    /// Performs element-wise equality comparison and returns a
+    /// tensor of Bool values
+    @inlinable public static func .== (
+        _ lhs: Self,
+        _ rhs: TensorElement.Value
+    ) -> Tensor<Shape, Bool> {
+        var result = Tensor<Shape, Bool>(shape: lhs.shape, order: lhs.order)
+        let expandedRHS = Tensor<Shape, TensorElement>(repeating: rhs, to: lhs.shape)
+        currentQueue.equal(lhs, expandedRHS, &result)
+        return result
+    }
 }
