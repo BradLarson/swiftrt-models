@@ -16,7 +16,7 @@ import Foundation
 import ModelSupport
 import SwiftRT
 
-//let stepCount = 5
+//let stepCount = 20
 let stepCount = 1
 //let gridSize = 512
 let gridSize = 10
@@ -65,22 +65,12 @@ func step(phase: Int) {
   // Perceive
   let senseDirection = repeating(expand(dims: headings, axis: 1), (particleCount, 3)) +
     repeating(array([-moveAngle, 0.0, moveAngle], (1, 3)), (particleCount, 3))
-
   // TODO: I shouldn't need to specify the tensor type here to make this unambiguous.
   let sensingOffset: TensorR3<Float> = senseDirection.angleToVector() * senseDistance
   let sensingPosition = repeating(expand(dims: positions, axis: 1), (particleCount, 3, 2)) + sensingOffset
   // TODO: This wrapping around negative values needs to be fixed.
   let sensingIndices = abs(TensorR3<Int32>(sensingPosition)) % gridShapeR3
-
-  // TODO: Gather
-  //  let sensedValues = currentGrid.expandingShape(at: 2)
-  //    .dimensionGathering(atIndices: sensingIndices).squeezingShape(at: 2)
-
-  let sensedValues = array([-3.0, 0.0, 2.0,
-                            1.0, 1.0, 1.0,
-                            1.0, 2.0, 3.0,
-                            3.0, 2.0, 1.0,
-                            -1.0, -2.0, -3.0], (5, 3)) // PLACEHOLDER
+  let sensedValues = gather(from: currentGrid, indices: sensingIndices)
 
   // Move
   //  let lowValues = argmin(sensedValues) // lowValues should be [0, 0-2, 0, 2, 2]
@@ -126,58 +116,3 @@ if captureImage {
   try steps.saveAnimatedImage(directory: "output", name: "physarum", delay: 1)
 }
 
-// TODO: argmin and argmax should take in comparable values and provide indices out.
-// TODO: argmin and argmax should provide a squeezing axis parameter.
-@inlinable public func argmin<S,E>(
-    _ lhs: Tensor<S,E>
-) -> Tensor<S,E> where E.Value: Comparable & ComparableLimits {
-  var result = Tensor(like: lhs)
-  currentQueue.argmin(lhs, &result)
-  return result
-}
-
-@inlinable public func argmax<S,E>(
-    _ lhs: Tensor<S,E>
-) -> Tensor<S,E> where E.Value: Comparable & ComparableLimits {
-  var result = Tensor(like: lhs)
-  currentQueue.argmax(lhs, &result)
-  return result
-}
-
-// TODO: Add this into main SwiftRT.
-// TODO: Add an equality operator with the rhs being a scalar.
-extension Tensor where TensorElement.Value: Equatable & StorageElement {
-    /// Performs element-wise equality comparison and returns a
-    /// tensor of Bool values
-    @inlinable public static func .== (
-        _ lhs: Self,
-        _ rhs: TensorElement.Value
-    ) -> Tensor<Shape, Bool> {
-        var result = Tensor<Shape, Bool>(shape: lhs.shape, order: lhs.order)
-        let expandedRHS = Tensor<Shape, TensorElement>(repeating: rhs, to: lhs.shape)
-        currentQueue.equal(lhs, expandedRHS, &result)
-        return result
-    }
-}
-
-// TODO: Implement this as an actual SwiftRT operator in a better way than this.
-extension Tensor where Element == Int32 {
-  @inlinable public static func % (lhs: Self, rhs: Self) -> Self {
-    return lhs - (Tensor(Tensor<Shape, Float>(lhs) / Tensor<Shape, Float>(rhs)) * rhs)
-  }
-}
-
-// TODO: Replace this with a more generalized function for scattering.
-@inlinable public func scatter<E>(
-  number: E.Value,
-  into shape: Shape2,
-  indices: TensorR2<DeviceIndex>
-) -> TensorR2<E> where E.Value: Numeric {
-  var result = zeros(shape, E.self)
-  for index in 0..<indices.shape[0] {
-    let currentIndex = squeeze(indices[index], axis: 0)
-    result[Int(currentIndex[0]), Int(currentIndex[1])] = number
-  }
-
-  return result
-}
