@@ -42,22 +42,19 @@ let gridShape = repeating(array([Int32(gridSize), Int32(gridSize)], (1, 1, 2)), 
 
 extension Tensor where TensorElement.Value: Numeric {
   func mask(condition: (Tensor<Shape, TensorElement>) -> Tensor<Shape, Bool>) -> Tensor<Shape, TensorElement> {
-    let satisfied = condition(self)
-    return replace(x: zeros(like: self), with: ones(like: self), where: satisfied)
+    return Tensor(condition(self))
   }
 }
 
 extension TensorR2 where TensorElement.Value: Real {
   func angleToVector() -> TensorR3<TensorElement> {
-    // Note: Axis of -1 produced wrong shape here.
-    return TensorR3(stacking: [cos(self), sin(self)], axis: 2)
+    return TensorR3(stacking: [cos(self), sin(self)], axis: -1)
   }
 }
 
 extension TensorR1 where TensorElement.Value: Real {
   func angleToVector() -> TensorR2<TensorElement> {
-    // Note: Axis of -1 produced wrong shape here.
-    return TensorR2(stacking: [cos(self), sin(self)], axis: 1)
+    return TensorR2(stacking: [cos(self), sin(self)], axis: -1)
   }
 }
 
