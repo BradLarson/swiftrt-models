@@ -38,7 +38,8 @@ var grid = [repeating(0, (gridSize, gridSize), type: Float.self),
 var positions = TensorR2<Float>(randomUniform: Shape2(particleCount, 2)) * Float(gridSize)
 var headings = TensorR1<Float>(randomUniform: particleCount) * 2.0 * Float.pi
 
-let gridShape = repeating(array([Int32(gridSize), Int32(gridSize)], (1, 1, 2)), (particleCount, 3, 2))
+let gridShapeR3 = repeating(array([Int32(gridSize), Int32(gridSize)], (1, 1, 2)), (particleCount, 3, 2))
+let gridShapeR2 = repeating(array([Int32(gridSize), Int32(gridSize)], (1, 2)), (particleCount, 2))
 
 extension Tensor where TensorElement.Value: Numeric {
   func mask(condition: (Tensor<Shape, TensorElement>) -> Tensor<Shape, Bool>) -> Tensor<Shape, TensorElement> {
@@ -69,9 +70,7 @@ func step(phase: Int) {
   let sensingOffset: TensorR3<Float> = senseDirection.angleToVector() * senseDistance
   let sensingPosition = repeating(expand(dims: positions, axis: 1), (particleCount, 3, 2)) + sensingOffset
   // TODO: This wrapping around negative values needs to be fixed.
-  let sensingIndices = abs(TensorR3<Int32>(sensingPosition))
-  // TODO: Add the following modulus to the above.
-  //  % gridShape
+  let sensingIndices = abs(TensorR3<Int32>(sensingPosition)) % gridShapeR3
 
   // TODO: Gather
   //  let sensedValues = currentGrid.expandingShape(at: 2)
@@ -98,9 +97,7 @@ func step(phase: Int) {
 
   // Deposit
   // TODO: This wrapping around negative values needs to be fixed.
-  let depositIndices = abs(TensorR2<Int32>(positions))
-  // TODO: Add the following modulus to the above.
-    // % gridShape
+  let depositIndices = abs(TensorR2<Int32>(positions)) % gridShapeR2
 
   // TODO: Scatter
   //  let deposits = scatterValues.dimensionScattering(atIndices: depositIndices, shape: gridShape)
@@ -143,7 +140,7 @@ if captureImage {
 }
 
 // TODO: argmin and argmax should take in comparable values and provide indices out.
-// TODO: argmin and argmax shoulf provide a squeezing axis parameter.
+// TODO: argmin and argmax should provide a squeezing axis parameter.
 @inlinable public func argmin<S,E>(
     _ lhs: Tensor<S,E>
 ) -> Tensor<S,E> where E.Value: Comparable & ComparableLimits {
@@ -174,4 +171,11 @@ extension Tensor where TensorElement.Value: Equatable & StorageElement {
         currentQueue.equal(lhs, expandedRHS, &result)
         return result
     }
+}
+
+// TODO: Implement this as an actual SwiftRT operator in a better way than this.
+extension Tensor where Element == Int32 {
+  @inlinable public static func % (lhs: Self, rhs: Self) -> Self {
+    return lhs - (Tensor(Tensor<Shape, Float>(lhs) / Tensor<Shape, Float>(rhs)) * rhs)
+  }
 }
