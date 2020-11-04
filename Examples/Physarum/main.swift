@@ -98,20 +98,7 @@ func step(phase: Int) {
   // Deposit
   // TODO: This wrapping around negative values needs to be fixed.
   let depositIndices = abs(TensorR2<Int32>(positions)) % gridShapeR2
-
-  // TODO: Scatter
-  //  let deposits = scatterValues.dimensionScattering(atIndices: depositIndices, shape: gridShape)
-  let deposits = array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], (10, 10)) // PLACEHOLDER
-
+  let deposits: TensorR2<Float> = scatter(number: 1.0, into: Shape2(gridSize, gridSize), indices: depositIndices)
   currentGrid += deposits
 
   // Diffuse
@@ -178,4 +165,19 @@ extension Tensor where Element == Int32 {
   @inlinable public static func % (lhs: Self, rhs: Self) -> Self {
     return lhs - (Tensor(Tensor<Shape, Float>(lhs) / Tensor<Shape, Float>(rhs)) * rhs)
   }
+}
+
+// TODO: Replace this with a more generalized function for scattering.
+@inlinable public func scatter<E>(
+  number: E.Value,
+  into shape: Shape2,
+  indices: TensorR2<DeviceIndex>
+) -> TensorR2<E> where E.Value: Numeric {
+  var result = zeros(shape, E.self)
+  for index in 0..<indices.shape[0] {
+    let currentIndex = squeeze(indices[index], axis: 0)
+    result[Int(currentIndex[0]), Int(currentIndex[1])] = number
+  }
+
+  return result
 }
