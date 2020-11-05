@@ -16,9 +16,12 @@ import Foundation
 import ModelSupport
 import SwiftRT
 
-let stepCount = 5
-let gridSize = 512
-let particleCount = 1024
+//let stepCount = 20
+let stepCount = 1
+//let gridSize = 512
+let gridSize = 10
+//let particleCount = 1024
+let particleCount = 5
 let senseAngle = 0.20 * Float.pi
 let senseDistance: Float = 4.0
 let evaporationRate: Float = 0.95
@@ -26,7 +29,6 @@ let moveAngle = 0.1 * Float.pi
 let moveStep: Float = 2.0
 let channelSize = 1
 let captureImage = true
-
 let runOnCPU = false
 
 if runOnCPU { use(device: 0) }
@@ -36,62 +38,63 @@ var grid = [repeating(0, (gridSize, gridSize), type: Float.self),
 var positions = TensorR2<Float>(randomUniform: Shape2(particleCount, 2)) * Float(gridSize)
 var headings = TensorR1<Float>(randomUniform: particleCount) * 2.0 * Float.pi
 
-let gridShape = Shape2(gridSize, gridSize)
+let gridShapeR3 = repeating(array([Int32(gridSize), Int32(gridSize)], (1, 1, 2)), (particleCount, 3, 2))
+let gridShapeR2 = repeating(array([Int32(gridSize), Int32(gridSize)], (1, 2)), (particleCount, 2))
 
-// TODO: Implement mask
-//extension Tensor where Scalar: Numeric {
-//  func mask(condition: (Tensor) -> Tensor<Bool>) -> Tensor {
-//    let satisfied = condition(self)
-//    return Tensor(zerosLike: self)
-//      .replacing(with: Tensor(onesLike: self), where: satisfied)
-//  }
-//}
+extension Tensor where TensorElement.Value: Numeric {
+  func mask(condition: (Tensor<Shape, TensorElement>) -> Tensor<Shape, Bool>) -> Tensor<Shape, TensorElement> {
+    return cast(condition(self), elementsTo: TensorElement.self)
+  }
+}
 
-// TODO: Implement angleToVector
-//func angleToVector(_ angle: Tensor<Float>) -> Tensor<Float> {
-//  return Tensor(stacking: [cos(angle), sin(angle)], alongAxis: -1)
-//}
+extension TensorR2 where TensorElement.Value: Real {
+  func angleToVector() -> TensorR3<TensorElement> {
+    return TensorR3(stacking: [cos(self), sin(self)], axis: -1)
+  }
+}
+
+extension TensorR1 where TensorElement.Value: Real {
+  func angleToVector() -> TensorR2<TensorElement> {
+    return TensorR2(stacking: [cos(self), sin(self)], axis: -1)
+  }
+}
 
 func step(phase: Int) {
-  // TODO: Implement all this.
-  /*
   var currentGrid = grid[phase]
+
   // Perceive
-  let senseDirection = headings.expandingShape(at: 1).broadcasted(to: [particleCount, 3])
-    + Tensor<Float>([-moveAngle, 0.0, moveAngle], on: device)
-  let sensingOffset = angleToVector(senseDirection) * senseDistance
-  let sensingPosition = positions.expandingShape(at: 1) + sensingOffset
+  let senseDirection = repeating(expand(dims: headings, axis: 1), (particleCount, 3)) +
+    repeating(array([-moveAngle, 0.0, moveAngle], (1, 3)), (particleCount, 3))
+  // TODO: I shouldn't need to specify the tensor type here to make this unambiguous.
+  let sensingOffset: TensorR3<Float> = senseDirection.angleToVector() * senseDistance
+  let sensingPosition = repeating(expand(dims: positions, axis: 1), (particleCount, 3, 2)) + sensingOffset
   // TODO: This wrapping around negative values needs to be fixed.
-  let sensingIndices = abs(Tensor<Int32>(sensingPosition))
-    % (gridShape.expandingShape(at: 0).expandingShape(at: 0))
-  let sensedValues = currentGrid.expandingShape(at: 2)
-    .dimensionGathering(atIndices: sensingIndices).squeezingShape(at: 2)
-  
+  let sensingIndices = abs(cast(sensingPosition, elementsTo: Int32.self)) % gridShapeR3
+  let sensedValues = gather(from: currentGrid, indices: sensingIndices)
+
   // Move
-  let lowValues = sensedValues.argmin(squeezingAxis: -1)
-  let highValues = sensedValues.argmax(squeezingAxis: -1)
+  let lowValues = argmin3(sensedValues)
+  let highValues = argmax3(sensedValues)
   let middleMask = lowValues.mask { $0 .== 1 }
-  let middleDistribution = Tensor<Float>(randomUniform: [particleCount], on: device)
-  let randomTurn = middleDistribution.mask { $0 .< 0.1 } * Tensor<Float>(middleMask)
-  let turn = Tensor<Float>(highValues - 1) * Tensor<Float>(1 - middleMask) + randomTurn
+  let middleDistribution = TensorR1<Float>(randomUniform: particleCount)
+  let randomTurn = middleDistribution.mask { $0 .< 0.1 } * cast(middleMask, elementsTo: Float.self)
+  let turn = cast(highValues - 1, elementsTo: Float.self) * cast(1 - middleMask, elementsTo: Float.self) + randomTurn
   headings += (turn * moveAngle)
-  positions += angleToVector(headings) * moveStep
-  
+  positions += headings.angleToVector() * moveStep
+
   // Deposit
   // TODO: This wrapping around negative values needs to be fixed.
-  // TODO: XLA errors out with "Invalid argument: Automatic shape inference not supported: s32[1024,2] and s32[1,1,2]"
-  // if the manual shape expansion isn't present here.
-  let depositIndices = abs(Tensor<Int32>(positions)) % (gridShape.expandingShape(at: 0))
-  let deposits = scatterValues.dimensionScattering(atIndices: depositIndices, shape: gridShape)
+  let depositIndices = abs(cast(positions, elementsTo: Int32.self)) % gridShapeR2
+  let deposits: TensorR2<Float> = scatter(number: 1.0, into: Shape2(gridSize, gridSize), indices: depositIndices)
   currentGrid += deposits
-  
+
   // Diffuse
-  currentGrid = currentGrid.expandingShape(at: 0).expandingShape(at: 3)
-  currentGrid = currentGrid.padded(forSizes: [(0, 0), (1, 1), (1, 1), (0, 0)], mode: .reflect)
-  currentGrid = avgPool2D(currentGrid, filterSize: (1, 3, 3, 1), strides: (1, 1, 1, 1), padding: .valid)
+
+  // TODO: 3x3 average pool with 0-padding
+  // currentGrid = avgPool2D(currentGrid, filterSize: (1, 3, 3, 1), strides: (1, 1, 1, 1), padding: .valid)
+
   currentGrid = currentGrid * evaporationRate
-  grid[1 - phase] = currentGrid.squeezingShape(at: 3).squeezingShape(at: 0)
-  */
+  grid[1 - phase] = currentGrid
 }
 
 let start = Date()
@@ -109,3 +112,4 @@ print("Total calculation time: \(String(format: "%.4f", Date().timeIntervalSince
 if captureImage {
   try steps.saveAnimatedImage(directory: "output", name: "physarum", delay: 1)
 }
+

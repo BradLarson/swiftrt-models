@@ -1,4 +1,5 @@
 add_executable(Physarum
+  Helpers.swift
   main.swift)
 target_link_libraries(Physarum PRIVATE
   ModelSupport
