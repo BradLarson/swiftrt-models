@@ -70,7 +70,7 @@ public struct Image {
       let data = [UInt8](UnsafeBufferPointer(start: bytes, count: Int(width * height * bpp)))
       stbi_image_free(bytes)
       // TODO: Storage internally as UInt8
-      let loadedTensor = array(data.map { Float($0) }, (Int(width), Int(height), Int(bpp)))
+      let loadedTensor = array(data.map { Float($0) }, shape: (Int(width), Int(height), Int(bpp)))
       
       // TODO: Grayscale conversion to RGB channels
       //            if bpp == 1 {

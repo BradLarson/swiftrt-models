@@ -37,10 +37,10 @@ func mandelbrotSet(
   let iLast = Complex<Float>(0, range.end.imaginary)
 
   let X =
-    repeating(array(from: rFirst, to: rLast, (1, size.c)), size)
-    + repeating(array(from: iFirst, to: iLast, (size.r, 1)), size)
+    repeating(array(from: rFirst, to: rLast, shape: (1, size.c)), shape: size)
+    + repeating(array(from: iFirst, to: iLast, shape: (size.r, 1)), shape: size)
   var Z = X
-  var divergence = mode == .kernel ? empty(size) : full(size, iterations)
+  var divergence = mode == .kernel ? empty(shape: size) : full(shape: size, iterations)
 
   //----------------------------------
   // perform the test

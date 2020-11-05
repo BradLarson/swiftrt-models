@@ -38,9 +38,9 @@ func juliaSet(
   let iLast = Complex<Float>(0, range.end.imaginary)
 
   var Z =
-    repeating(array(from: rFirst, to: rLast, (1, size.c)), size)
-    + repeating(array(from: iFirst, to: iLast, (size.r, 1)), size)
-  var divergence = mode == .kernel ? zeros(size) : full(size, iterations)
+    repeating(array(from: rFirst, to: rLast, shape: (1, size.c)), shape: size)
+    + repeating(array(from: iFirst, to: iLast, shape: (size.r, 1)), shape: size)
+  var divergence = mode == .kernel ? zeros(shape: size) : full(shape: size, iterations)
 
   //----------------------------------
   // perform the test

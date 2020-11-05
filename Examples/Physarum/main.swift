@@ -33,13 +33,13 @@ let runOnCPU = false
 
 if runOnCPU { use(device: 0) }
 
-var grid = [repeating(0, (gridSize, gridSize), type: Float.self),
-            repeating(0, (gridSize, gridSize), type: Float.self)]
+var grid = [repeating(0, shape: (gridSize, gridSize), type: Float.self),
+            repeating(0, shape: (gridSize, gridSize), type: Float.self)]
 var positions = TensorR2<Float>(randomUniform: Shape2(particleCount, 2)) * Float(gridSize)
 var headings = TensorR1<Float>(randomUniform: particleCount) * 2.0 * Float.pi
 
-let gridShapeR3 = repeating(array([Int32(gridSize), Int32(gridSize)], (1, 1, 2)), (particleCount, 3, 2))
-let gridShapeR2 = repeating(array([Int32(gridSize), Int32(gridSize)], (1, 2)), (particleCount, 2))
+let gridShapeR3 = repeating(array([Int32(gridSize), Int32(gridSize)], shape: (1, 1, 2)), shape: (particleCount, 3, 2))
+let gridShapeR2 = repeating(array([Int32(gridSize), Int32(gridSize)], shape: (1, 2)), shape: (particleCount, 2))
 
 extension Tensor where TensorElement.Value: Numeric {
   func mask(condition: (Tensor<Shape, TensorElement>) -> Tensor<Shape, Bool>) -> Tensor<Shape, TensorElement> {
@@ -63,11 +63,11 @@ func step(phase: Int) {
   var currentGrid = grid[phase]
 
   // Perceive
-  let senseDirection = repeating(expand(dims: headings, axis: 1), (particleCount, 3)) +
-    repeating(array([-moveAngle, 0.0, moveAngle], (1, 3)), (particleCount, 3))
+  let senseDirection = repeating(expand(dims: headings, axis: 1), shape: (particleCount, 3)) +
+    repeating(array([-moveAngle, 0.0, moveAngle], shape: (1, 3)), shape: (particleCount, 3))
   // TODO: I shouldn't need to specify the tensor type here to make this unambiguous.
   let sensingOffset: TensorR3<Float> = senseDirection.angleToVector() * senseDistance
-  let sensingPosition = repeating(expand(dims: positions, axis: 1), (particleCount, 3, 2)) + sensingOffset
+  let sensingPosition = repeating(expand(dims: positions, axis: 1), shape: (particleCount, 3, 2)) + sensingOffset
   // TODO: This wrapping around negative values needs to be fixed.
   let sensingIndices = abs(cast(sensingPosition, elementsTo: Int32.self)) % gridShapeR3
   let sensedValues = gather(from: currentGrid, indices: sensingIndices)
