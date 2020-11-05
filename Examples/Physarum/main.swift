@@ -43,7 +43,7 @@ let gridShapeR2 = repeating(array([Int32(gridSize), Int32(gridSize)], (1, 2)), (
 
 extension Tensor where TensorElement.Value: Numeric {
   func mask(condition: (Tensor<Shape, TensorElement>) -> Tensor<Shape, Bool>) -> Tensor<Shape, TensorElement> {
-    return Tensor(condition(self))
+    return cast(condition(self), elementsTo: TensorElement.self)
   }
 }
 
@@ -69,7 +69,7 @@ func step(phase: Int) {
   let sensingOffset: TensorR3<Float> = senseDirection.angleToVector() * senseDistance
   let sensingPosition = repeating(expand(dims: positions, axis: 1), (particleCount, 3, 2)) + sensingOffset
   // TODO: This wrapping around negative values needs to be fixed.
-  let sensingIndices = abs(TensorR3<Int32>(sensingPosition)) % gridShapeR3
+  let sensingIndices = abs(cast(sensingPosition, elementsTo: Int32.self)) % gridShapeR3
   let sensedValues = gather(from: currentGrid, indices: sensingIndices)
 
   // Move
@@ -77,14 +77,14 @@ func step(phase: Int) {
   let highValues = argmax3(sensedValues)
   let middleMask = lowValues.mask { $0 .== 1 }
   let middleDistribution = TensorR1<Float>(randomUniform: particleCount)
-  let randomTurn = middleDistribution.mask { $0 .< 0.1 } * TensorR1<Float>(middleMask)
-  let turn = TensorR1<Float>(highValues - 1) * TensorR1<Float>(1 - middleMask) + randomTurn
+  let randomTurn = middleDistribution.mask { $0 .< 0.1 } * cast(middleMask, elementsTo: Float.self)
+  let turn = cast(highValues - 1, elementsTo: Float.self) * cast(1 - middleMask, elementsTo: Float.self) + randomTurn
   headings += (turn * moveAngle)
   positions += headings.angleToVector() * moveStep
 
   // Deposit
   // TODO: This wrapping around negative values needs to be fixed.
-  let depositIndices = abs(TensorR2<Int32>(positions)) % gridShapeR2
+  let depositIndices = abs(cast(positions, elementsTo: Int32.self)) % gridShapeR2
   let deposits: TensorR2<Float> = scatter(number: 1.0, into: Shape2(gridSize, gridSize), indices: depositIndices)
   currentGrid += deposits
 

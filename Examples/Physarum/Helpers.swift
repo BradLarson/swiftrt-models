@@ -18,15 +18,15 @@ import SwiftRT
 @inlinable public func argmin3<E>(
     _ lhs: TensorR2<E>
 ) -> TensorR1<DeviceIndex> where E.Value: Numeric & Comparable & ComparableLimits {
-  var slice1 = squeeze(lhs[0..<lhs.shape[0], 0], axis: 1)
+  let slice1 = squeeze(lhs[0..<lhs.shape[0], 0], axis: 1)
   var slice2 = squeeze(lhs[0..<lhs.shape[0], 1], axis: 1)
-  var slice3 = squeeze(lhs[0..<lhs.shape[0], 2], axis: 1)
+  let slice3 = squeeze(lhs[0..<lhs.shape[0], 2], axis: 1)
 
   let mask1 = slice1 .> slice2
-  let floatMask1 = TensorR1<E>(mask1)
+  let floatMask1 = cast(mask1, elementsTo: E.self)
   slice2 = slice2 * floatMask1 + slice1 * (1 - floatMask1)
-  var indices = TensorR1<DeviceIndex>(mask1)
-  let mask2 = TensorR1<DeviceIndex>(slice2 .> slice3)
+  var indices = cast(mask1, elementsTo: DeviceIndex.self)
+  let mask2 = cast(slice2 .> slice3, elementsTo: DeviceIndex.self)
   indices = indices * (1 - mask2) + 2 * mask2
 
   return indices
@@ -36,15 +36,15 @@ import SwiftRT
 @inlinable public func argmax3<E>(
     _ lhs: TensorR2<E>
 ) -> TensorR1<DeviceIndex> where E.Value: Numeric & Comparable & ComparableLimits {
-  var slice1 = squeeze(lhs[0..<lhs.shape[0], 0], axis: 1)
+  let slice1 = squeeze(lhs[0..<lhs.shape[0], 0], axis: 1)
   var slice2 = squeeze(lhs[0..<lhs.shape[0], 1], axis: 1)
-  var slice3 = squeeze(lhs[0..<lhs.shape[0], 2], axis: 1)
+  let slice3 = squeeze(lhs[0..<lhs.shape[0], 2], axis: 1)
 
   let mask1 = slice1 .< slice2
-  let floatMask1 = TensorR1<E>(mask1)
+  let floatMask1 = cast(mask1, elementsTo: E.self)
   slice2 = slice2 * floatMask1 + slice1 * (1 - floatMask1)
-  var indices = TensorR1<DeviceIndex>(mask1)
-  let mask2 = TensorR1<DeviceIndex>(slice2 .< slice3)
+  var indices = cast(mask1, elementsTo: DeviceIndex.self)
+  let mask2 = cast(slice2 .< slice3, elementsTo: DeviceIndex.self)
   indices = indices * (1 - mask2) + 2 * mask2
 
   return indices
@@ -69,7 +69,7 @@ extension Tensor where TensorElement.Value: Equatable & StorageElement {
 // TODO: Implement this as an actual SwiftRT operator in a better way than this.
 extension Tensor where Element == Int32 {
   @inlinable public static func % (lhs: Self, rhs: Self) -> Self {
-    return lhs - (Tensor(Tensor<Shape, Float>(lhs) / Tensor<Shape, Float>(rhs)) * rhs)
+    return lhs - (cast(cast(lhs, elementsTo: Float.self) / cast(rhs, elementsTo: Float.self), elementsTo: TensorElement.self) * rhs)
   }
 }
 
