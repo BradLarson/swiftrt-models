@@ -89,11 +89,9 @@ func step(phase: Int) {
   currentGrid += deposits
 
   // Diffuse
-
-  // TODO: 3x3 average pool with 0-padding
-  // currentGrid = avgPool2D(currentGrid, filterSize: (1, 3, 3, 1), strides: (1, 1, 1, 1), padding: .valid)
-
+  currentGrid = pool(x: currentGrid, size: (3, 3), strides: (1, 1), pad: .same, mode: .averagePadding)
   currentGrid = currentGrid * evaporationRate
+  
   grid[1 - phase] = currentGrid
 }
 
