@@ -14,22 +14,40 @@
 
 import SwiftRT
 
-// TODO: argmin and argmax should take in comparable values and provide indices out.
-// TODO: argmin and argmax should provide a squeezing axis parameter.
-@inlinable public func argmin<S,E>(
-    _ lhs: Tensor<S,E>
-) -> Tensor<S,E> where E.Value: Comparable & ComparableLimits {
-  var result = Tensor(like: lhs)
-  currentQueue.argmin(lhs, &result)
-  return result
+// TODO: Generalize argmin and upstream it.
+@inlinable public func argmin3<E>(
+    _ lhs: TensorR2<E>
+) -> TensorR1<DeviceIndex> where E.Value: Numeric & Comparable & ComparableLimits {
+  var slice1 = squeeze(lhs[0..<lhs.shape[0], 0], axis: 1)
+  var slice2 = squeeze(lhs[0..<lhs.shape[0], 1], axis: 1)
+  var slice3 = squeeze(lhs[0..<lhs.shape[0], 2], axis: 1)
+
+  let mask1 = slice1 .> slice2
+  let floatMask1 = TensorR1<E>(mask1)
+  slice2 = slice2 * floatMask1 + slice1 * (1 - floatMask1)
+  var indices = TensorR1<DeviceIndex>(mask1)
+  let mask2 = TensorR1<DeviceIndex>(slice2 .> slice3)
+  indices = indices * (1 - mask2) + 2 * mask2
+
+  return indices
 }
 
-@inlinable public func argmax<S,E>(
-    _ lhs: Tensor<S,E>
-) -> Tensor<S,E> where E.Value: Comparable & ComparableLimits {
-  var result = Tensor(like: lhs)
-  currentQueue.argmax(lhs, &result)
-  return result
+// TODO: Generalize argmax and upstream it.
+@inlinable public func argmax3<E>(
+    _ lhs: TensorR2<E>
+) -> TensorR1<DeviceIndex> where E.Value: Numeric & Comparable & ComparableLimits {
+  var slice1 = squeeze(lhs[0..<lhs.shape[0], 0], axis: 1)
+  var slice2 = squeeze(lhs[0..<lhs.shape[0], 1], axis: 1)
+  var slice3 = squeeze(lhs[0..<lhs.shape[0], 2], axis: 1)
+
+  let mask1 = slice1 .< slice2
+  let floatMask1 = TensorR1<E>(mask1)
+  slice2 = slice2 * floatMask1 + slice1 * (1 - floatMask1)
+  var indices = TensorR1<DeviceIndex>(mask1)
+  let mask2 = TensorR1<DeviceIndex>(slice2 .< slice3)
+  indices = indices * (1 - mask2) + 2 * mask2
+
+  return indices
 }
 
 // TODO: Add this into main SwiftRT.

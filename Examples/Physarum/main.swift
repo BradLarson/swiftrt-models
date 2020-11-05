@@ -73,11 +73,8 @@ func step(phase: Int) {
   let sensedValues = gather(from: currentGrid, indices: sensingIndices)
 
   // Move
-  //  let lowValues = argmin(sensedValues) // lowValues should be [0, 0-2, 0, 2, 2]
-  //  let highValues = argmax(sensedValues) // highValues should be [2, 0-2, 2, 0, 0]
-  let lowValues: TensorR1<Int32> = array([0, 1, 0, 2, 2])  // PLACEHOLDER
-  let highValues: TensorR1<Int32> = array([2, 1, 2, 0, 0]) // PLACEHOLDER
-
+  let lowValues = argmin3(sensedValues)
+  let highValues = argmax3(sensedValues)
   let middleMask = lowValues.mask { $0 .== 1 }
   let middleDistribution = TensorR1<Float>(randomUniform: particleCount)
   let randomTurn = middleDistribution.mask { $0 .< 0.1 } * TensorR1<Float>(middleMask)
