@@ -50,22 +50,6 @@ import SwiftRT
   return indices
 }
 
-// TODO: Add this into main SwiftRT.
-// TODO: Add an equality operator with the rhs being a scalar.
-extension Tensor where TensorElement.Value: Equatable & StorageElement {
-    /// Performs element-wise equality comparison and returns a
-    /// tensor of Bool values
-    @inlinable public static func .== (
-        _ lhs: Self,
-        _ rhs: TensorElement.Value
-    ) -> Tensor<Shape, Bool> {
-        var result = Tensor<Shape, Bool>(shape: lhs.shape, order: lhs.order)
-        let expandedRHS = Tensor<Shape, TensorElement>(repeating: rhs, to: lhs.shape)
-        currentQueue.equal(lhs, expandedRHS, &result)
-        return result
-    }
-}
-
 // TODO: Implement this as an actual SwiftRT operator in a better way than this.
 extension Tensor where Element == Int32 {
   @inlinable public static func % (lhs: Self, rhs: Self) -> Self {
