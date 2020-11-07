@@ -79,7 +79,7 @@ extension Tensor where Element == Int32 {
   into shape: Shape2,
   indices: TensorR2<DeviceIndex>
 ) -> TensorR2<E> where E.Value: Numeric {
-  var result = zeros(shape, E.self)
+  var result = zeros(shape: shape, E.self)
   for index in 0..<indices.shape[0] {
     let currentIndex = squeeze(indices[index], axis: 0)
     result[Int(currentIndex[0]), Int(currentIndex[1])] = number
@@ -95,7 +95,7 @@ extension Tensor where Element == Int32 {
 ) -> TensorR2<E> {
   let shape = Shape2(indices.shape[0], indices.shape[1])
 
-  let squeezedIndices = reshape(indices, (indices.shape[0] * indices.shape[1], indices.shape[2]))
+  let squeezedIndices = reshape(indices, shape: (indices.shape[0] * indices.shape[1], indices.shape[2]))
   var values: [E.Value] = []
   for index in 0..<squeezedIndices.shape[0] {
     let currentIndex = squeeze(squeezedIndices[index], axis: 0)
