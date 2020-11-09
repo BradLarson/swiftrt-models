@@ -66,7 +66,7 @@ file(MAKE_DIRECTORY ${BINARY_DIR}/swift)
 ExternalProject_Add(swift-rt
   SOURCE_DIR ../../swiftrt
 #  GIT_REPOSITORY git://github.com/ewconnell/swiftrt.git
-#  GIT_TAG origin/master
+#  GIT_TAG origin/main
   CMAKE_ARGS
     -DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}
     -DBUILD_SHARED_LIBS=YES
@@ -135,7 +135,7 @@ ExternalProject_Add(swift-numerics
   GIT_REPOSITORY
     git://github.com/apple/swift-numerics
   GIT_TAG
-    master
+    main
   CMAKE_ARGS
     -D BUILD_SHARED_LIBS=YES
     -D BUILD_TESTING=NO
