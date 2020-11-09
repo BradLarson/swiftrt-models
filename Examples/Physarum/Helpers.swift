@@ -83,7 +83,7 @@ extension Tensor where Element == Int32 {
   var values: [E.Value] = []
   for index in 0..<squeezedIndices.shape[0] {
     let currentIndex = squeeze(squeezedIndices[index], axis: 0)
-    values.append(contentsOf: tensor[Int(currentIndex[1]), Int(currentIndex[0])].flatArray)
+    values.append(contentsOf: tensor[Int(currentIndex[0]), Int(currentIndex[1])].flatArray)
   }
 
   let result = TensorR2<E>(values, shape)

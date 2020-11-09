@@ -16,12 +16,9 @@ import Foundation
 import ModelSupport
 import SwiftRT
 
-//let stepCount = 20
-let stepCount = 1
-//let gridSize = 512
-let gridSize = 10
-//let particleCount = 1024
-let particleCount = 5
+let stepCount = 200
+let gridSize = 512
+let particleCount = 1024
 let senseAngle = 0.20 * Float.pi
 let senseDistance: Float = 4.0
 let evaporationRate: Float = 0.95
@@ -89,7 +86,7 @@ func step(phase: Int) {
   currentGrid += deposits
 
   // Diffuse
-  currentGrid = pool(currentGrid, windowSize: 3, padding: .same, mode: .averagePadding)
+  currentGrid = pool(currentGrid, windowSize: 3, padding: 1, mode: .average)
   currentGrid = currentGrid * evaporationRate
   
   grid[1 - phase] = currentGrid
