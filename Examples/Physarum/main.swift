@@ -86,7 +86,7 @@ func step(phase: Int) {
   currentGrid += deposits
 
   // Diffuse
-  currentGrid = pool(currentGrid, windowSize: 3, padding: 1, mode: .average)
+  currentGrid = pool(x: currentGrid, windowSize: 3, padding: 1, op: .average)
   currentGrid = currentGrid * evaporationRate
   
   grid[1 - phase] = currentGrid
