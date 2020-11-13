@@ -56,6 +56,21 @@ extension TensorR1 where TensorElement.Value: Real {
   }
 }
 
+func heuristicTurn(perceptions: TensorR2<Float>) -> TensorR1<Float> {
+  let lowValues = argmin3(perceptions)
+  let highValues = argmax3(perceptions)
+  let middleMask = lowValues.mask { $0 .== 1 }
+  let middleDistribution = TensorR1<Float>(randomUniform: particleCount)
+  let randomTurn = middleDistribution.mask { $0 .< 0.1 } * cast(middleMask, elementsTo: Float.self)
+  return cast(highValues - 1, elementsTo: Float.self) * cast(1 - middleMask, elementsTo: Float.self) + randomTurn
+}
+
+//func learnedTurn(perceptions: TensorR2<Float>) -> TensorR1<Float> {
+// Dense(16, tf.nn.relu)
+// Dense(16, tf.nn.relu)
+// Dense(1)
+//}
+
 func step(phase: Int) {
   var currentGrid = grid[phase]
 
@@ -67,15 +82,10 @@ func step(phase: Int) {
   let sensingPosition = repeating(expand(dims: positions, axis: 1), shape: (particleCount, 3, 2)) + sensingOffset
   // TODO: This wrapping around negative values needs to be fixed.
   let sensingIndices = abs(cast(sensingPosition, elementsTo: Int32.self)) % gridShapeR3
-  let sensedValues = gather(from: currentGrid, indices: sensingIndices)
+  let perceptions = gather(from: currentGrid, indices: sensingIndices)
 
   // Move
-  let lowValues = argmin3(sensedValues)
-  let highValues = argmax3(sensedValues)
-  let middleMask = lowValues.mask { $0 .== 1 }
-  let middleDistribution = TensorR1<Float>(randomUniform: particleCount)
-  let randomTurn = middleDistribution.mask { $0 .< 0.1 } * cast(middleMask, elementsTo: Float.self)
-  let turn = cast(highValues - 1, elementsTo: Float.self) * cast(1 - middleMask, elementsTo: Float.self) + randomTurn
+  let turn = heuristicTurn(perceptions: perceptions)
   headings += (turn * moveAngle)
   positions += headings.angleToVector() * moveStep
 
@@ -86,7 +96,7 @@ func step(phase: Int) {
   currentGrid += deposits
 
   // Diffuse
-  currentGrid = pool(currentGrid, windowSize: 3, padding: 1, mode: .average)
+  currentGrid = pool(x: currentGrid, windowSize: 3, padding: 1, op: .average)
   currentGrid = currentGrid * evaporationRate
   
   grid[1 - phase] = currentGrid
