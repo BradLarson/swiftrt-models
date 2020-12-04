@@ -86,6 +86,6 @@ extension Tensor where Element == Int32 {
     values.append(contentsOf: tensor[Int(currentIndex[0]), Int(currentIndex[1])].flatArray)
   }
 
-  let result = TensorR2<E>(values, shape)
+  let result = TensorR2<E>(values, shape: shape)
   return result
 }
