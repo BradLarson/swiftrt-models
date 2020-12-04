@@ -50,13 +50,6 @@ import SwiftRT
   return indices
 }
 
-// TODO: Implement this as an actual SwiftRT operator in a better way than this.
-extension Tensor where Element == Int32 {
-  @inlinable public static func % (lhs: Self, rhs: Self) -> Self {
-    return lhs - (cast(cast(lhs, elementsTo: Float.self) / cast(rhs, elementsTo: Float.self), elementsTo: TensorElement.self) * rhs)
-  }
-}
-
 // TODO: Replace this with a more generalized function for scattering.
 @inlinable public func scatter<E>(
   number: E.Value,

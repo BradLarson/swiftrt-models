@@ -25,7 +25,7 @@ let evaporationRate: Float = 0.95
 let moveAngle = 0.1 * Float.pi
 let moveStep: Float = 2.0
 let channelSize = 1
-let captureImage = true
+let captureImage = false // true
 let runOnCPU = false
 
 if runOnCPU { use(device: 0) }
